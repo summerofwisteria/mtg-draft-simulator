@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTG Draft Tutor - Learn to Draft Better</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- React & Babel -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        :root {
+            --deep-black: #0a0a0f;
+            --rich-purple: #6b46c1;
+            --royal-gold: #d4af37;
+            --mystic-blue: #4a90e2;
+            --soft-white: #f8f8ff;
+            --border-color: rgba(212, 175, 55, 0.2);
+            
+            /* MTG Rarity Colors */
+            --common-gray: #8a8a8a;
+            --uncommon-silver: #c0c0c0;
+            --rare-gold: #d4af37;
+            --mythic-orange: #ff8c00;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'IBM Plex Sans', sans-serif;
+            background: var(--deep-black);
+            color: var(--soft-white);
+            overflow-x: hidden;
+        }
+
+        #magicBg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: radial-gradient(ellipse at top, rgba(107, 70, 193, 0.15), transparent),
+                        radial-gradient(ellipse at bottom, rgba(74, 144, 226, 0.1), transparent);
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.8), transparent);
+            border-radius: 50%;
+            animation: float linear infinite;
+            opacity: 0.6;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            50% { opacity: 0.6; }
+            100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        }
+
+        #app {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .title {
+            font-family: 'Cinzel', serif;
+            font-size: 3.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--royal-gold), var(--mystic-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--mystic-blue);
+            font-weight: 300;
+        }
+
+        .api-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--rich-purple), var(--mystic-blue));
+            padding: 0.5rem 1.5rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        /* Setup Screen */
+        .setup-screen {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .setup-card {
+            background: rgba(26, 26, 36, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 3rem;
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-family: 'Cinzel', serif;
+            font-size: 1.8rem;
+            color: var(--royal-gold);
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 2rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--mystic-blue);
+            margin-bottom: 0.75rem;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--soft-white);
+            font-size: 1rem;
+            font-family: 'IBM Plex Sans', sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: var(--royal-gold);
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+        }
+
+        .form-help {
+            font-size: 0.85rem;
+            color: var(--soft-white);
+            opacity: 0.6;
+            margin-top: 0.5rem;
+        }
+
+        /* MTG Rarity Difficulty Selector */
+        .difficulty-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .difficulty-option {
+            background: rgba(0, 0, 0, 0.4);
+            border: 3px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .difficulty-option:hover {
+            transform: translateY(-5px);
+        }
+
+        .difficulty-option.selected {
+            transform: scale(1.05);
+            box-shadow: 0 10px 40px rgba(212, 175, 55, 0.4);
+        }
+
+        .difficulty-option.common {
+            border-color: var(--common-gray);
+        }
+
+        .difficulty-option.common.selected {
+            border-color: var(--common-gray);
+            box-shadow: 0 10px 40px rgba(138, 138, 138, 0.5);
+        }
+
+        .difficulty-option.uncommon {
+            border-color: var(--uncommon-silver);
+        }
+
+        .difficulty-option.uncommon.selected {
+            border-color: var(--uncommon-silver);
+            box-shadow: 0 10px 40px rgba(192, 192, 192, 0.5);
+        }
+
+        .difficulty-option.rare {
+            border-color: var(--rare-gold);
+        }
+
+        .difficulty-option.rare.selected {
+            border-color: var(--rare-gold);
+            box-shadow: 0 10px 40px rgba(212, 175, 55, 0.6);
+        }
+
+        .difficulty-option.mythic {
+            border-color: var(--mythic-orange);
+            background: linear-gradient(135deg, rgba(255, 140, 0, 0.1), transparent);
+        }
+
+        .difficulty-option.mythic.selected {
+            border-color: var(--mythic-orange);
+            box-shadow: 0 10px 40px rgba(255, 140, 0, 0.7);
+        }
+
+        .difficulty-icon {
+            font-size: 3rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .difficulty-name {
+            font-family: 'Cinzel', serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .difficulty-option.common .difficulty-name {
+            color: var(--common-gray);
+        }
+
+        .difficulty-option.uncommon .difficulty-name {
+            color: var(--uncommon-silver);
+        }
+
+        .difficulty-option.rare .difficulty-name {
+            color: var(--rare-gold);
+        }
+
+        .difficulty-option.mythic .difficulty-name {
+            background: linear-gradient(135deg, #ff8c00, #ff4500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .difficulty-desc {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+        }
+
+        .button {
+            background: linear-gradient(135deg, var(--rich-purple), var(--mystic-blue));
+            color: var(--soft-white);
+            border: none;
+            padding: 1.25rem 3rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Cinzel', serif;
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(107, 70, 193, 0.4);
+        }
+
+        .button:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(107, 70, 193, 0.6);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Chess Engine Style Analysis */
+        .engine-panel {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.6), rgba(26, 26, 36, 0.8));
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 2px solid var(--royal-gold);
+            position: relative;
+        }
+
+        .engine-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .engine-icon {
+            font-size: 2rem;
+        }
+
+        .engine-title {
+            font-family: 'Cinzel', serif;
+            font-size: 1.5rem;
+            color: var(--royal-gold);
+        }
+
+        .engine-subtitle {
+            font-size: 0.85rem;
+            color: var(--mystic-blue);
+            opacity: 0.8;
+        }
+
+        .best-move-display {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            padding: 1.5rem;
+            border-left: 4px solid var(--royal-gold);
+        }
+
+        .best-move-label {
+            font-size: 0.9rem;
+            color: var(--mystic-blue);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .best-move-card {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--royal-gold);
+            margin-bottom: 1rem;
+        }
+
+        .engine-evaluation {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .eval-bar-container {
+            width: 8px;
+            height: 100%;
+            min-height: 80px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .eval-bar {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(to top, var(--royal-gold), var(--mystic-blue));
+            transition: height 0.5s ease;
+        }
+
+        .engine-analysis {
+            color: var(--soft-white);
+            line-height: 1.7;
+            opacity: 0.9;
+        }
+
+        .engine-metrics {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.85rem;
+        }
+
+        .engine-metric {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .metric-label {
+            color: var(--mystic-blue);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            color: var(--soft-white);
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        /* AI Reasoning (compact for engine mode) */
+        .ai-reasoning-panel {
+            background: rgba(26, 26, 36, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .reasoning-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            border-left: 3px solid var(--mystic-blue);
+            font-size: 0.85rem;
+        }
+
+        .reasoning-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        .reasoning-ai-name {
+            color: var(--royal-gold);
+        }
+
+        .reasoning-pick {
+            color: var(--mystic-blue);
+            font-size: 0.75rem;
+        }
+
+        .reasoning-card-name {
+            font-weight: 600;
+            color: var(--soft-white);
+            margin-bottom: 0.25rem;
+        }
+
+        .reasoning-text {
+            color: var(--soft-white);
+            opacity: 0.85;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        /* Draft Screen */
+        .draft-screen {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .draft-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .pick-info {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'Cinzel', serif;
+            color: var(--royal-gold);
+        }
+
+        .timer {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--mystic-blue);
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .timer.warning {
+            color: var(--mythic-orange);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pack-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: rgba(26, 26, 36, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 2px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-10px) scale(1.05);
+            border-color: var(--royal-gold);
+            box-shadow: 0 20px 40px rgba(212, 175, 55, 0.4);
+            z-index: 10;
+        }
+
+        .card-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+        }
+
+        .card-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            color: var(--soft-white);
+        }
+
+        .card-type {
+            font-size: 0.8rem;
+            color: var(--mystic-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .card-rating {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border: 2px solid var(--royal-gold);
+        }
+
+        /* Loading */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 10, 15, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(212, 175, 55, 0.2);
+            border-top-color: var(--royal-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 1.5rem;
+            font-size: 1.2rem;
+            color: var(--mystic-blue);
+        }
+
+        /* Analysis Screen */
+        .analysis-screen {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .grade-hero {
+            text-align: center;
+            padding: 3rem;
+            background: linear-gradient(135deg, rgba(107, 70, 193, 0.3), rgba(74, 144, 226, 0.3));
+            border-radius: 20px;
+            margin-bottom: 3rem;
+            border: 2px solid var(--royal-gold);
+        }
+
+        .grade-letter {
+            font-family: 'Cinzel', serif;
+            font-size: 6rem;
+            font-weight: 700;
+            color: var(--royal-gold);
+            margin-bottom: 1rem;
+        }
+
+        .grade-subtitle {
+            font-size: 1.5rem;
+            color: var(--mystic-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Cost Transparency Banner */
+        .cost-banner {
+            background: linear-gradient(135deg, rgba(107, 70, 193, 0.2), rgba(74, 144, 226, 0.2));
+            border: 1px solid var(--mystic-blue);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .cost-info {
+            font-size: 0.9rem;
+            color: var(--soft-white);
+        }
+
+        .cost-value {
+            font-weight: 700;
+            color: var(--royal-gold);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .title {
+                font-size: 2rem;
+            }
+            
+            .difficulty-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .pack-container {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            }
+            
+            /* Skills Sidebar - V4 Addition */
+            .draft-screen-with-sidebar {
+                display: grid;
+                grid-template-columns: 1fr 300px;
+                gap: 2rem;
+            }
+
+            .skills-sidebar {
+                background: rgba(26, 26, 36, 0.8);
+                backdrop-filter: blur(10px);
+                border-radius: 16px;
+                padding: 2rem;
+                border: 1px solid var(--border-color);
+                position: sticky;
+                top: 2rem;
+                max-height: calc(100vh - 4rem);
+            }
+
+            .sidebar-title {
+                font-family: 'Cinzel', serif;
+                font-size: 1.2rem;
+                color: var(--royal-gold);
+                margin-bottom: 1.5rem;
+                text-align: center;
+            }
+
+            .skill-item {
+                margin-bottom: 1.5rem;
+            }
+
+            .skill-header {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 0.5rem;
+            }
+
+            .skill-name {
+                font-size: 0.85rem;
+                font-weight: 600;
+            }
+
+            .skill-score {
+                font-size: 1rem;
+                font-weight: 700;
+                color: var(--royal-gold);
+            }
+
+            .skill-bar {
+                width: 100%;
+                height: 8px;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 4px;
+                overflow: hidden;
+            }
+
+            .skill-fill {
+                height: 100%;
+                background: linear-gradient(90deg, var(--royal-gold), var(--mystic-blue));
+                transition: width 0.5s ease;
+            }
+
+            .overall-grade {
+                text-align: center;
+                padding: 1.5rem;
+                background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(74, 144, 226, 0.1));
+                border-radius: 12px;
+                border: 2px solid var(--royal-gold);
+                margin-top: 1.5rem;
+            }
+
+            .grade-value {
+                font-family: 'Cinzel', serif;
+                font-size: 3rem;
+                font-weight: 700;
+                color: var(--royal-gold);
+            }
+
+            /* Slide-Up Feedback Panel - V4 Addition */
+            .feedback-panel {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(to top, rgba(10, 10, 15, 0.98), rgba(26, 26, 36, 0.95));
+                backdrop-filter: blur(20px);
+                border-top: 2px solid var(--royal-gold);
+                transform: translateY(100%);
+                transition: transform 0.4s ease;
+                z-index: 1000;
+                max-height: 60vh;
+                overflow-y: auto;
+            }
+
+            .feedback-panel.open {
+                transform: translateY(0);
+            }
+
+            .panel-content {
+                padding: 2rem;
+                max-width: 1000px;
+                margin: 0 auto;
+            }
+
+            .assessment-header {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 2rem;
+                gap: 2rem;
+            }
+
+            .pick-card {
+                flex: 1;
+                text-align: center;
+                padding: 1.5rem;
+                background: rgba(0, 0, 0, 0.4);
+                border-radius: 12px;
+            }
+
+            .pick-card.yours {
+                border: 2px solid var(--mystic-blue);
+            }
+
+            .pick-card.engine {
+                border: 2px solid var(--royal-gold);
+            }
+
+            .pick-label {
+                font-size: 0.8rem;
+                opacity: 0.7;
+                margin-bottom: 0.5rem;
+            }
+
+            .pick-name {
+                font-size: 1.3rem;
+                font-weight: 700;
+                margin-bottom: 0.25rem;
+            }
+
+            .result-badge {
+                display: inline-block;
+                padding: 0.75rem 2rem;
+                border-radius: 20px;
+                font-size: 1.1rem;
+                font-weight: 700;
+                margin-bottom: 2rem;
+            }
+
+            .result-badge.optimal {
+                background: rgba(74, 222, 128, 0.2);
+                border: 2px solid #4ade80;
+                color: #4ade80;
+            }
+
+            .result-badge.suboptimal {
+                background: rgba(251, 146, 60, 0.2);
+                border: 2px solid #fb923c;
+                color: #fb923c;
+            }
+
+            .rubric-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                gap: 1rem;
+                margin-bottom: 2rem;
+            }
+
+            .rubric-item {
+                background: rgba(0, 0, 0, 0.3);
+                padding: 1rem;
+                border-radius: 8px;
+                border-left: 4px solid var(--royal-gold);
+            }
+
+            .rubric-label {
+                font-size: 0.8rem;
+                opacity: 0.8;
+                margin-bottom: 0.25rem;
+            }
+
+            .rubric-value {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--royal-gold);
+            }
+
+            .panel-button {
+                background: var(--mystic-blue);
+                color: var(--soft-white);
+                border: none;
+                padding: 1rem 2rem;
+                border-radius: 8px;
+                font-weight: 600;
+                cursor: pointer;
+                width: 100%;
+                font-size: 1rem;
+            }
+
+            .panel-button:hover {
+                background: var(--royal-gold);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="magicBg"></div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Generate particles
+        function generateParticles() {
+            const bg = document.getElementById('magicBg');
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.width = particle.style.height = (Math.random() * 4 + 2) + 'px';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 15) + 's';
+                bg.appendChild(particle);
+            }
+        }
+        generateParticles();
+
+        // ========================================
+        // CONFIGURATION - UPDATE THIS!
+        // ========================================
+        const PROXY_ENDPOINT = 'https://your-worker.workers.dev'; // Your Cloudflare Worker URL
+        
+        // Scryfall API
+        const SCRYFALL_API = 'https://api.scryfall.com';
+        const SET_CODES = {
+            'foundations': 'fdn',
+            'duskmourn': 'dsk',
+            'bloomburrow': 'blb',
+            'modern-horizons-3': 'mh3',
+            'outlaws': 'otj'
+        };
+
+        // Card rating
+        function estimateRating(card) {
+            if (card.rarity === 'mythic') return 'A+';
+            if (card.rarity === 'rare') return Math.random() > 0.5 ? 'A' : 'A-';
+            
+            if (card.type_line.includes('Instant') || card.type_line.includes('Sorcery')) {
+                if (card.oracle_text.toLowerCase().includes('destroy') || 
+                    card.oracle_text.toLowerCase().includes('exile') ||
+                    card.oracle_text.toLowerCase().includes('damage')) {
+                    return Math.random() > 0.3 ? 'A-' : 'B+';
+                }
+            }
+            
+            if (card.type_line.includes('Creature')) {
+                const power = parseInt(card.power) || 0;
+                const toughness = parseInt(card.toughness) || 0;
+                const cmc = card.cmc || 0;
+                const statTotal = power + toughness;
+                
+                if (cmc <= 2 && statTotal >= 3) return 'B+';
+                if (cmc === 3 && statTotal >= 5) return 'B+';
+                if (cmc >= 4 && statTotal >= 7) return 'B';
+            }
+            
+            const grades = ['B', 'B-', 'C+', 'C', 'C-'];
+            return grades[Math.floor(Math.random() * grades.length)];
+        }
+
+        // Fetch cards
+        async function fetchSetCards(setCode) {
+            try {
+                const response = await fetch(`${SCRYFALL_API}/cards/search?q=set:${setCode}+-is:reprint&unique=prints`);
+                const data = await response.json();
+                
+                return data.data.map(card => ({
+                    id: card.id,
+                    name: card.name,
+                    type: card.type_line,
+                    cmc: card.cmc,
+                    colors: card.colors || [],
+                    rarity: card.rarity,
+                    image: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal,
+                    oracle_text: card.oracle_text || '',
+                    power: card.power,
+                    toughness: card.toughness,
+                    rating: estimateRating(card)
+                }));
+            } catch (error) {
+                console.error('Scryfall error:', error);
+                return [];
+            }
+        }
+
+        // Generate pack
+        async function generatePack(setCode, allCards) {
+            const commons = allCards.filter(c => c.rarity === 'common');
+            const uncommons = allCards.filter(c => c.rarity === 'uncommon');
+            const raresAndMythics = allCards.filter(c => c.rarity === 'rare' || c.rarity === 'mythic');
+            const pack = [];
+            
+            if (raresAndMythics.length > 0) {
+                pack.push(raresAndMythics[Math.floor(Math.random() * raresAndMythics.length)]);
+            }
+            
+            for (let i = 0; i < 3 && uncommons.length > 0; i++) {
+                const card = uncommons[Math.floor(Math.random() * uncommons.length)];
+                if (!pack.find(c => c.id === card.id)) {
+                    pack.push(card);
+                }
+            }
+            
+            while (pack.length < 15 && commons.length > 0) {
+                const card = commons[Math.floor(Math.random() * commons.length)];
+                if (!pack.find(c => c.id === card.id)) {
+                    pack.push(card);
+                }
+            }
+            
+            return pack;
+        }
+
+        // Main Component
+        function DraftSimulator() {
+            const [screen, setScreen] = useState('setup');
+            const [set, setSet] = useState('foundations');
+            const [difficulty, setDifficulty] = useState('mythic'); // common, uncommon, rare, mythic
+            const [engineAnalysis, setEngineAnalysis] = useState(true);
+            const [showAIReasoning, setShowAIReasoning] = useState(true);
+            const [loading, setLoading] = useState(false);
+            const [loadingMessage, setLoadingMessage] = useState('');
+            
+            const [allCards, setAllCards] = useState([]);
+            const [currentPack, setCurrentPack] = useState(1);
+            const [currentPick, setCurrentPick] = useState(1);
+            const [allPacks, setAllPacks] = useState([]);
+            const [allPlayers, setAllPlayers] = useState([]);
+            const [timer, setTimer] = useState(60);
+            
+            const [aiReasoning, setAiReasoning] = useState([]);
+            const [bestMove, setBestMove] = useState(null);
+            
+            const [totalCost, setTotalCost] = useState(0);
+            const [apiCalls, setApiCalls] = useState(0);
+            
+            const [grade, setGrade] = useState('');
+            const [analysis, setAnalysis] = useState(null);
+
+            // V4 Tutoring state
+            const [skills, setSkills] = useState({
+                signal: { score: 0, picks: 0 },
+                timing: { score: 0, picks: 0 },
+                curve: { score: 0, picks: 0 },
+                synergy: { score: 0, picks: 0 },
+                quality: { score: 0, picks: 0 }
+            });
+            const [showPanel, setShowPanel] = useState(false);
+            const [assessment, setAssessment] = useState(null);
+
+
+            // Timer
+            useEffect(() => {
+                if (screen === 'draft' && timer > 0) {
+                    const interval = setInterval(() => {
+                        setTimer(t => t - 1);
+                    }, 1000);
+                    return () => clearInterval(interval);
+                } else if (timer === 0 && allPacks.length > 0 && allPacks[0]?.length > 0) {
+                    handlePick(allPacks[0][0], 0);
+                }
+            }, [screen, timer, allPacks]);
+
+            const startDraft = async () => {
+                setLoading(true);
+                setLoadingMessage('Loading card set...');
+                
+                try {
+                    const setCode = SET_CODES[set] || 'fdn';
+                    const cards = await fetchSetCards(setCode);
+                    setAllCards(cards);
+                    
+                    setLoadingMessage('Opening packs...');
+                    
+                    const packs = [];
+                    for (let i = 0; i < 8; i++) {
+                        packs.push(await generatePack(setCode, cards));
+                    }
+                    
+                    const players = Array(8).fill(null).map((_, i) => ({
+                        id: i,
+                        name: i === 0 ? 'You' : `AI ${i}`,
+                        picks: [],
+                        isAI: i !== 0
+                    }));
+                    
+                    setAllPacks(packs);
+                    setAllPlayers(players);
+                    setCurrentPack(1);
+                    setCurrentPick(1);
+                    setTimer(60);
+                    setAiReasoning([]);
+                    setTotalCost(0);
+                    setApiCalls(0);
+                    setScreen('draft');
+                    
+                    if (engineAnalysis) {
+                        await getEngineAnalysis(packs[0], players[0].picks);
+                    }
+                } catch (error) {
+                    console.error('Error starting draft:', error);
+                    alert('Error starting draft. Please try again.');
+                } finally {
+                    setLoading(false);
+                    setLoadingMessage('');
+                }
+            };
+
+            // Call Claude API via proxy
+            const callClaudeAPI = async (pack, currentPicks, playerName, packNum, pickNum) => {
+                try {
+                    const response = await fetch(PROXY_ENDPOINT, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-5-20250929',
+                            max_tokens: 500,
+                            messages: [{
+                                role: 'user',
+                                content: `You are an expert MTG Limited player at ${difficulty.toUpperCase()} difficulty level drafting ${set}.
+
+Current: Pack ${packNum}, Pick ${pickNum}
+Your picks (${currentPicks.length} cards): ${currentPicks.map(c => `${c.name} (${c.rating})`).join(', ') || 'None yet'}
+
+Pack (${pack.length} cards):
+${pack.map(c => `- ${c.name} (${c.type}, ${c.colors.join('/')}, Rating: ${c.rating})`).join('\n')}
+
+Difficulty adjustments:
+${difficulty === 'common' ? '- Make occasional suboptimal picks\n- Less color discipline' : ''}
+${difficulty === 'uncommon' ? '- Good picks but simple strategy' : ''}
+${difficulty === 'rare' ? '- Strong picks, reads signals well' : ''}
+${difficulty === 'mythic' ? '- Optimal picks, expert signal reading, perfect color discipline' : ''}
+
+Analyze and choose the best card. Consider: card quality, curve, colors, synergies, signals.
+
+Format:
+PICK: [exact card name]
+REASONING: [2-3 sentences why]`
+                            }]
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    // If there's a fallback flag, use simple AI
+                    if (data.fallback) {
+                        return simpleAIPick(pack, currentPicks);
+                    }
+                    
+                    const inputTokens = data.usage?.input_tokens || 0;
+                    const outputTokens = data.usage?.output_tokens || 0;
+                    const cost = (inputTokens * 0.000003) + (outputTokens * 0.000015);
+                    
+                    setTotalCost(prev => prev + cost);
+                    setApiCalls(prev => prev + 1);
+                    
+                    const text = data.content[0].text;
+                    const pickMatch = text.match(/PICK:\s*(.+)/i);
+                    const reasoningMatch = text.match(/REASONING:\s*(.+)/is);
+                    
+                    const pickedCardName = pickMatch ? pickMatch[1].trim() : null;
+                    const reasoning = reasoningMatch ? reasoningMatch[1].trim() : 'Strategic pick';
+                    
+                    const pickedCard = pack.find(c => 
+                        c.name.toLowerCase() === pickedCardName?.toLowerCase()
+                    ) || pack[0];
+                    
+                    return { card: pickedCard, reasoning, cost };
+                } catch (error) {
+                    console.error('API error:', error);
+                    return simpleAIPick(pack, currentPicks);
+                }
+            };
+
+            // Fallback simple AI
+            const simpleAIPick = (pack, currentPicks) => {
+                const ratingValues = { 'A+': 100, 'A': 90, 'A-': 85, 'B+': 80, 'B': 70, 'B-': 60, 'C+': 50, 'C': 40, 'C-': 30 };
+                const sorted = [...pack].sort((a, b) => (ratingValues[b.rating] || 50) - (ratingValues[a.rating] || 50));
+                return { 
+                    card: sorted[0], 
+                    reasoning: 'Picked highest rated card', 
+                    cost: 0 
+                };
+            };
+
+            // Engine analysis for user
+            const getEngineAnalysis = async (pack, currentPicks) => {
+                if (!engineAnalysis) return;
+                
+                setLoadingMessage('Engine analyzing position...');
+                
+                const result = await callClaudeAPI(pack, currentPicks, 'Engine', currentPack, currentPick);
+                
+                setBestMove({
+                    card: result.card,
+                    reasoning: result.reasoning,
+                    evaluation: Math.min(95, 60 + currentPicks.length * 2) // Simple eval
+                });
+            };
+
+            const handlePick = async (card, playerIndex = 0) => {
+                const newPlayers = [...allPlayers];
+                newPlayers[playerIndex].picks.push({
+                    ...card,
+                    packNum: currentPack,
+                    pickNum: currentPick
+                });
+                
+                // V4 TUTORING: Assess pick before continuing
+                if (playerIndex === 0 && bestMove) {
+                    const isOptimal = card.id === bestMove.card.id;
+                    const ratingVals = { 'A+': 100, 'A': 90, 'A-': 85, 'B+': 80, 'B': 70, 'B-': 60, 'C+': 50, 'C': 40, 'C-': 30 };
+                    
+                    // Rubric scoring
+                    const qualityScore = ratingVals[card.rating] || 50;
+                    const curveScore = (card.cmc >= 2 && card.cmc <= 4) ? 90 : 70;
+                    const timingScore = currentPick <= 6 ? 90 : 70;
+                    const signalScore = allPacks[0].length >= 8 ? 90 : 70;
+                    
+                    const colorMatches = newPlayers[0].picks.filter(p => 
+                        p.colors.some(c => card.colors.includes(c))
+                    ).length;
+                    const synergyScore = newPlayers[0].picks.length <= 1 ? 75 : 
+                        Math.round((colorMatches / newPlayers[0].picks.length) * 100);
+                    
+                    // Update skills
+                    setSkills(prev => ({
+                        signal: { score: prev.signal.score + signalScore, picks: prev.signal.picks + 1 },
+                        timing: { score: prev.timing.score + timingScore, picks: prev.timing.picks + 1 },
+                        curve: { score: prev.curve.score + curveScore, picks: prev.curve.picks + 1 },
+                        synergy: { score: prev.synergy.score + synergyScore, picks: prev.synergy.picks + 1 },
+                        quality: { score: prev.quality.score + qualityScore, picks: prev.quality.picks + 1 }
+                    }));
+                    
+                    // Set assessment
+                    setAssessment({
+                        isOptimal,
+                        yourPick: card,
+                        enginePick: bestMove.card,
+                        rubric: {
+                            quality: Math.round(qualityScore),
+                            curve: Math.round(curveScore),
+                            timing: Math.round(timingScore),
+                            signal: Math.round(signalScore),
+                            synergy: Math.round(synergyScore)
+                        }
+                    });
+                    
+                    setShowPanel(true);
+                    return; // Don't continue until panel closed
+                }
+                
+                setAllPlayers(newPlayers);
+                
+                const newPacks = [...allPacks];
+                newPacks[playerIndex] = newPacks[playerIndex].filter(c => c.id !== card.id);
+                setAllPacks(newPacks);
+                
+                if (currentPack === 3 && currentPick === 15) {
+                    await analyzeDraft(newPlayers[0].picks);
+                    setScreen('analysis');
+                    return;
+                }
+                
+                setLoading(true);
+                setLoadingMessage('AI opponents picking...');
+                const newReasoning = [];
+                
+                for (let i = 1; i < 8; i++) {
+                    if (newPacks[i] && newPacks[i].length > 0) {
+                        const result = await callClaudeAPI(
+                            newPacks[i],
+                            newPlayers[i].picks,
+                            newPlayers[i].name,
+                            currentPack,
+                            currentPick
+                        );
+                        
+                        newPlayers[i].picks.push({
+                            ...result.card,
+                            packNum: currentPack,
+                            pickNum: currentPick
+                        });
+                        
+                        newPacks[i] = newPacks[i].filter(c => c.id !== result.card.id);
+                        
+                        if (showAIReasoning) {
+                            newReasoning.push({
+                                player: newPlayers[i].name,
+                                card: result.card.name,
+                                reasoning: result.reasoning,
+                                pick: `P${currentPack}P${currentPick}`
+                            });
+                        }
+                    }
+                }
+                
+                setAllPlayers(newPlayers);
+                setAiReasoning(prev => [...newReasoning, ...prev].slice(0, 15));
+                
+                const passedPacks = [...newPacks];
+                if (currentPack % 2 === 1) {
+                    passedPacks.unshift(passedPacks.pop());
+                } else {
+                    passedPacks.push(passedPacks.shift());
+                }
+                setAllPacks(passedPacks);
+                
+                if (currentPick === 15) {
+                    setLoadingMessage('Opening next pack...');
+                    const newPacks2 = [];
+                    for (let i = 0; i < 8; i++) {
+                        newPacks2.push(await generatePack(SET_CODES[set], allCards));
+                    }
+                    setAllPacks(newPacks2);
+                    setCurrentPack(currentPack + 1);
+                    setCurrentPick(1);
+                    
+                    if (engineAnalysis) {
+                        await getEngineAnalysis(newPacks2[0], newPlayers[0].picks);
+                    }
+                } else {
+                    setCurrentPick(currentPick + 1);
+                    
+                    if (engineAnalysis) {
+                        await getEngineAnalysis(passedPacks[0], newPlayers[0].picks);
+                    }
+                }
+                
+                setTimer(60);
+                setLoading(false);
+                setLoadingMessage('');
+            };
+
+            // V4 TUTORING: Continue draft after user closes assessment panel
+            const continueAfterAssessment = async () => {
+                setShowPanel(false);
+                
+                const newPlayers = [...allPlayers];
+                const newPacks = [...allPacks];
+                
+                setLoading(true);
+                setLoadingMessage('AI opponents analyzing...');
+                const newReasoning = [];
+                
+                // AI picks
+                for (let i = 1; i < 8; i++) {
+                    if (newPacks[i] && newPacks[i].length > 0) {
+                        const result = await callClaudeAPI(
+                            newPacks[i],
+                            newPlayers[i].picks,
+                            newPlayers[i].name,
+                            currentPack,
+                            currentPick
+                        );
+                        
+                        newPlayers[i].picks.push({
+                            ...result.card,
+                            packNum: currentPack,
+                            pickNum: currentPick
+                        });
+                        
+                        newPacks[i] = newPacks[i].filter(c => c.id !== result.card.id);
+                        
+                        if (showAIReasoning) {
+                            newReasoning.push({
+                                player: newPlayers[i].name,
+                                card: result.card.name,
+                                reasoning: result.reasoning,
+                                pick: `P${currentPack}P${currentPick}`
+                            });
+                        }
+                    }
+                }
+                
+                setAllPlayers(newPlayers);
+                setAiReasoning(prev => [...newReasoning, ...prev].slice(0, 15));
+                
+                // Pass packs
+                const passedPacks = [...newPacks];
+                if (currentPack % 2 === 1) {
+                    passedPacks.unshift(passedPacks.pop());
+                } else {
+                    passedPacks.push(passedPacks.shift());
+                }
+                setAllPacks(passedPacks);
+                
+                // Next pick or pack
+                if (currentPick === 15) {
+                    setLoadingMessage('Opening next pack...');
+                    const newPacks2 = [];
+                    for (let i = 0; i < 8; i++) {
+                        newPacks2.push(await generatePack(SET_CODES[set], allCards));
+                    }
+                    setAllPacks(newPacks2);
+                    setCurrentPack(currentPack + 1);
+                    setCurrentPick(1);
+                    
+                    if (engineAnalysis) {
+                        await getEngineAnalysis(newPacks2[0], newPlayers[0].picks);
+                    }
+                } else {
+                    setCurrentPick(currentPick + 1);
+                    
+                    if (engineAnalysis) {
+                        await getEngineAnalysis(passedPacks[0], newPlayers[0].picks);
+                    }
+                }
+                
+                setTimer(60);
+                setLoading(false);
+                setLoadingMessage('');
+            };
+
+
+            const analyzeDraft = async (picks) => {
+                setLoading(true);
+                setLoadingMessage('Analyzing draft...');
+                
+                const curve = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, '6+': 0 };
+                picks.forEach(card => {
+                    const cmc = card.cmc || 0;
+                    if (cmc >= 6) curve['6+']++;
+                    else curve[cmc]++;
+                });
+
+                const colors = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+                picks.forEach(card => {
+                    card.colors.forEach(c => colors[c]++);
+                });
+
+                const sortedColors = Object.entries(colors).sort((a, b) => b[1] - a[1]);
+                const primaryColors = sortedColors.slice(0, 2).map(([c]) => c);
+
+                const ratingValues = { 'A+': 100, 'A': 90, 'A-': 85, 'B+': 80, 'B': 70, 'B-': 60, 'C+': 50, 'C': 40, 'C-': 30 };
+                const avgRating = picks.reduce((sum, card) => sum + (ratingValues[card.rating] || 50), 0) / picks.length;
+                const curveScore = ((curve[2] || 0) * 10 + (curve[3] || 0) * 10 + (curve[4] || 0) * 8) / 3;
+                const colorScore = sortedColors[0][1] >= 12 && sortedColors[1][1] >= 8 ? 90 : 70;
+                
+                const overall = (avgRating * 0.4) + (curveScore * 0.3) + (colorScore * 0.3);
+                
+                let gradeLetter;
+                if (overall >= 90) gradeLetter = 'A+';
+                else if (overall >= 85) gradeLetter = 'A';
+                else if (overall >= 80) gradeLetter = 'A-';
+                else if (overall >= 75) gradeLetter = 'B+';
+                else if (overall >= 70) gradeLetter = 'B';
+                else if (overall >= 65) gradeLetter = 'B-';
+                else gradeLetter = 'C+';
+
+                setGrade(gradeLetter);
+                setAnalysis({ curve, colors, primaryColors });
+                setLoading(false);
+            };
+
+            const resetDraft = () => {
+                setScreen('setup');
+                setAllPlayers([]);
+                setAllPacks([]);
+                setAiReasoning([]);
+                setBestMove(null);
+                setGrade('');
+                setAnalysis(null);
+            };
+
+            const difficultyConfig = {
+                common: {
+                    icon: '⚪',
+                    name: 'Common',
+                    desc: 'Casual draft practice',
+                    class: 'common'
+                },
+                uncommon: {
+                    icon: '⚫',
+                    name: 'Uncommon',
+                    desc: 'Competent opponents',
+                    class: 'uncommon'
+                },
+                rare: {
+                    icon: '🟡',
+                    name: 'Rare',
+                    desc: 'Strong competition',
+                    class: 'rare'
+                },
+                mythic: {
+                    icon: '🔥',
+                    name: 'Mythic',
+                    desc: 'Maximum challenge',
+                    class: 'mythic'
+                }
+            };
+
+            return (
+                <div id="app">
+                    {loading && (
+                        <div className="loading-overlay">
+                            <div className="loading-spinner"></div>
+                            <div className="loading-text">{loadingMessage || 'Loading...'}</div>
+                        </div>
+                    )}
+
+                    <div className="header">
+                        <h1 className="title">MTG Draft Tutor</h1>
+                        <p className="subtitle">Master Limited with Live Coaching</p>
+                        <div className="api-badge">🤖 Powered by Claude Sonnet 4.5</div>
+                    </div>
+
+                    {screen === 'setup' && (
+                        <div className="setup-screen">
+                            {totalCost > 0 && (
+                                <div className="cost-banner">
+                                    <div className="cost-info">
+                                        Session costs are covered - draft unlimited! 🎉
+                                    </div>
+                                    <div className="cost-info">
+                                        Total used today: <span className="cost-value">${totalCost.toFixed(3)}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="setup-card">
+                                <h2 className="section-title">Draft Configuration</h2>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Draft Set</label>
+                                    <select
+                                        className="form-select"
+                                        value={set}
+                                        onChange={(e) => setSet(e.target.value)}
+                                    >
+                                        <option value="foundations">Foundations</option>
+                                        <option value="duskmourn">Duskmourn</option>
+                                        <option value="bloomburrow">Bloomburrow</option>
+                                        <option value="modern-horizons-3">Modern Horizons 3</option>
+                                        <option value="outlaws">Outlaws of Thunder Junction</option>
+                                    </select>
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">AI Difficulty</label>
+                                    <div className="difficulty-grid">
+                                        {Object.entries(difficultyConfig).map(([key, config]) => (
+                                            <div
+                                                key={key}
+                                                className={`difficulty-option ${config.class} ${difficulty === key ? 'selected' : ''}`}
+                                                onClick={() => setDifficulty(key)}
+                                            >
+                                                <div className="difficulty-icon">{config.icon}</div>
+                                                <div className="difficulty-name">{config.name}</div>
+                                                <div className="difficulty-desc">{config.desc}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <div className="checkbox-group">
+                                        <input
+                                            type="checkbox"
+                                            id="engineAnalysis"
+                                            checked={engineAnalysis}
+                                            onChange={(e) => setEngineAnalysis(e.target.checked)}
+                                        />
+                                        <label htmlFor="engineAnalysis" className="form-label" style={{marginBottom: 0}}>
+                                            Engine Analysis (show best move)
+                                        </label>
+                                    </div>
+                                    <div className="form-help">
+                                        Like chess engines - see optimal picks
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <div className="checkbox-group">
+                                        <input
+                                            type="checkbox"
+                                            id="showReasoning"
+                                            checked={showAIReasoning}
+                                            onChange={(e) => setShowAIReasoning(e.target.checked)}
+                                        />
+                                        <label htmlFor="showReasoning" className="form-label" style={{marginBottom: 0}}>
+                                            Show AI Reasoning
+                                        </label>
+                                    </div>
+                                    <div className="form-help">
+                                        See what opponents are thinking
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button className="button" onClick={startDraft}>
+                                Start Draft
+                            </button>
+                        </div>
+                    )}
+
+                    {screen === 'draft' && allPacks.length > 0 && (
+                        <div className="draft-screen-with-sidebar">
+                            <div>
+                            <div className="draft-header">
+                                <div className="pick-info">
+                                    Pack {currentPack}, Pick {currentPick}
+                                </div>
+                                <div className={`timer ${timer <= 10 ? 'warning' : ''}`}>
+                                    {timer}s
+                                </div>
+                            </div>
+
+                            {engineAnalysis && bestMove && (
+                                <div className="engine-panel">
+                                    <div className="engine-header">
+                                        <div className="engine-icon">⚡</div>
+                                        <div>
+                                            <div className="engine-title">Engine Analysis</div>
+                                            <div className="engine-subtitle">Claude Sonnet 4.5 • Depth: {difficulty}</div>
+                                        </div>
+                                    </div>
+                                    <div className="best-move-display">
+                                        <div className="best-move-label">Best Move</div>
+                                        <div className="best-move-card">{bestMove.card.name}</div>
+                                        <div className="engine-evaluation">
+                                            <div className="eval-bar-container">
+                                                <div 
+                                                    className="eval-bar" 
+                                                    style={{height: `${bestMove.evaluation}%`}}
+                                                />
+                                            </div>
+                                            <div>
+                                                <div className="engine-analysis">{bestMove.reasoning}</div>
+                                                <div className="engine-metrics">
+                                                    <div className="engine-metric">
+                                                        <div className="metric-label">Evaluation</div>
+                                                        <div className="metric-value">{bestMove.evaluation}%</div>
+                                                    </div>
+                                                    <div className="engine-metric">
+                                                        <div className="metric-label">Rating</div>
+                                                        <div className="metric-value">{bestMove.card.rating}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {showAIReasoning && aiReasoning.length > 0 && (
+                                <div className="ai-reasoning-panel">
+                                    <h3 className="section-title" style={{fontSize: '1rem', marginBottom: '1rem'}}>
+                                        Opponent Moves
+                                    </h3>
+                                    {aiReasoning.map((r, idx) => (
+                                        <div key={idx} className="reasoning-item">
+                                            <div className="reasoning-header">
+                                                <span className="reasoning-ai-name">{r.player}</span>
+                                                <span className="reasoning-pick">{r.pick}</span>
+                                            </div>
+                                            <div className="reasoning-card-name">{r.card}</div>
+                                            <div className="reasoning-text">{r.reasoning}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <h3 className="section-title" style={{marginBottom: '1.5rem'}}>
+                                Your Pick ({allPacks[0]?.length || 0} cards)
+                            </h3>
+                            
+                            <div className="pack-container">
+                                {allPacks[0]?.map(card => (
+                                    <div
+                                        key={card.id}
+                                        className="card"
+                                        onClick={() => handlePick(card, 0)}
+                                    >
+                                        {card.image && (
+                                            <img src={card.image} alt={card.name} className="card-image" />
+                                        )}
+                                        <div className="card-rating">{card.rating}</div>
+                                        <div className="card-name">{card.name}</div>
+                                        <div className="card-type">{card.type}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            </div>
+
+                            {/* V4 Skills Sidebar */}
+                            <div className="skills-sidebar">
+                                <div className="sidebar-title">📊 Live Progress</div>
+                                
+                                {Object.entries({
+                                    signal: 'Signal Reading',
+                                    timing: 'Color Timing',
+                                    curve: 'Curve Balance',
+                                    synergy: 'Synergy',
+                                    quality: 'Card Quality'
+                                }).map(([key, label]) => {
+                                    const avg = skills[key].picks > 0 ? Math.round(skills[key].score / skills[key].picks) : 0;
+                                    return (
+                                        <div key={key} className="skill-item">
+                                            <div className="skill-header">
+                                                <div className="skill-name">{label}</div>
+                                                <div className="skill-score">{avg}%</div>
+                                            </div>
+                                            <div className="skill-bar">
+                                                <div className="skill-fill" style={{width: `${avg}%`}} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                
+                                <div className="overall-grade">
+                                    <div style={{fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.5rem'}}>
+                                        Current Grade
+                                    </div>
+                                    <div className="grade-value">
+                                        {(() => {
+                                            const avg = Object.values(skills).reduce((sum, s) => {
+                                                return sum + (s.picks > 0 ? s.score / s.picks : 0);
+                                            }, 0) / 5;
+                                            if (avg >= 90) return 'A+';
+                                            if (avg >= 85) return 'A';
+                                            if (avg >= 80) return 'A-';
+                                            if (avg >= 75) return 'B+';
+                                            if (avg >= 70) return 'B';
+                                            return 'B-';
+                                        })()}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {screen === 'analysis' && analysis && (
+                        <div className="analysis-screen">
+                            <div className="grade-hero">
+                                <div className="grade-letter">{grade}</div>
+                                <div className="grade-subtitle">Draft Complete</div>
+                            </div>
+
+                            <div style={{textAlign: 'center'}}>
+                                <button className="button" onClick={resetDraft}>
+                                    Draft Again
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* V4 Feedback Panel */}
+                    {showPanel && assessment && (
+                        <div className={`feedback-panel ${showPanel ? 'open' : ''}`}>
+                            <div className="panel-content">
+                                <div style={{textAlign: 'center'}}>
+                                    <div className={`result-badge ${assessment.isOptimal ? 'optimal' : 'suboptimal'}`}>
+                                        {assessment.isOptimal ? '✓ OPTIMAL PICK' : '~ ACCEPTABLE PICK'}
+                                    </div>
+                                </div>
+                                
+                                <div className="assessment-header">
+                                    <div className="pick-card yours">
+                                        <div className="pick-label">Your Pick</div>
+                                        <div className="pick-name">{assessment.yourPick.name}</div>
+                                        <div>{assessment.yourPick.rating}</div>
+                                    </div>
+                                    <div className="pick-card engine">
+                                        <div className="pick-label">Engine Pick</div>
+                                        <div className="pick-name">{assessment.enginePick.name}</div>
+                                        <div>{assessment.enginePick.rating}</div>
+                                    </div>
+                                </div>
+                                
+                                <div className="rubric-grid">
+                                    {Object.entries(assessment.rubric).map(([key, score]) => (
+                                        <div key={key} className="rubric-item">
+                                            <div className="rubric-label">
+                                                {key === 'quality' ? 'Card Quality' :
+                                                 key === 'curve' ? 'Curve Balance' :
+                                                 key === 'timing' ? 'Color Timing' :
+                                                 key === 'signal' ? 'Signal Reading' : 'Synergy'}
+                                            </div>
+                                            <div className="rubric-value">{score}%</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                <button className="panel-button" onClick={continueAfterAssessment}>
+                                    Continue Draft
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<DraftSimulator />, document.getElementById('root'));
+    </script>
+</body>
+</html>
